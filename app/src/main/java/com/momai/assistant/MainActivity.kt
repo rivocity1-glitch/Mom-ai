@@ -9,7 +9,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.provider.ContactsContract
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -35,8 +34,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private var pendingAction: (() -> Unit)? = null
     private val speechRequest = 1001
     private val micRequest = 1002
-    private val contactsRequest = 1003
-    private var pendingContactName = ""
     private var pendingMessage = ""
 
     private val ink = 0xFF18352A.toInt()
@@ -253,12 +250,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 else respond("तो बटण/मजकूर सापडला नाही. स्क्रीनवर दिसणारे शब्द सांगा.")
             }
             command.contains("फोन कर") || command.contains("फोन लाव") || command.contains("कॉल कर") || command.contains("कॉल लाव") -> {
-                pendingContactName = spoken
-                    .replace(Regex("(?i)फोन लाव|फोन कर|कॉल लाव|कॉल कर|मला|जरा"), "")
-                    .replace("ला", "").replace("ना", "").trim()
-                if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                    requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), contactsRequest)
-                } else findContactForCall(pendingContactName)
+                askConfirmation("फोन डायलर उघडू का? तिथे संपर्क निवडा आणि नंबर तपासा.") {
+                    startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:")))
+                }
             }
             command.contains("whatsapp") || command.contains("व्हॉट्सअॅप") || command.contains("व्हाट्सअप") -> handleWhatsAppCommand(spoken)
             command.contains("उघड") || command.contains("ओपन") || command.startsWith("open ") -> openAppFromCommand(spoken)
@@ -313,36 +307,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         } else respond("${match.third} फोनवर सापडलं नाही.")
     }
 
-    private fun findContactForCall(query: String) {
-        if (query.isBlank()) { respond("कोणाला फोन करायचा ते नाव सांगा."); return }
-        val matches = mutableListOf<Pair<String, String>>()
-        try {
-            contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER),
-                null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                while (cursor.moveToNext()) {
-                    val name = cursor.getString(nameIndex) ?: continue
-                    val number = cursor.getString(numberIndex) ?: continue
-                    if (name.contains(query, true) || query.contains(name, true)) {
-                        if (matches.none { it.second == number }) matches.add(name to number)
-                    }
-                }
-            }
-        } catch (_: Exception) {}
-        when (matches.size) {
-            0 -> respond("संपर्क सापडला नाही. नाव फोनच्या Contacts मध्ये आहे का तपासा.")
-            1 -> {
-                val contact = matches.first()
-                askConfirmation("${contact.first} यांना फोन लावू का?") {
-                    startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(contact.second)}")))
-                }
-            }
-            else -> respond("या नावाचे अनेक संपर्क आहेत. पूर्ण नाव सांगा.")
-        }
-    }
-
     private fun handleWhatsAppCommand(spoken: String) {
         val lower = spoken.lowercase(Locale("mr", "IN"))
         if (lower.contains("उघड") || lower.contains("ओपन") || lower.contains("open")) {
@@ -391,11 +355,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            micRequest -> if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) listen()
-                else respond("मायक्रोफोन परवानगीशिवाय मी ऐकू शकत नाही. Settings मधून परवानगी द्या.")
-            contactsRequest -> if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) findContactForCall(pendingContactName)
-                else respond("संपर्क शोधण्यासाठी Contacts परवानगी आवश्यक आहे.")
+        if (requestCode == micRequest) {
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) listen()
+            else respond("मायक्रोफोन परवानगीशिवाय मी ऐकू शकत नाही. Settings मधून परवानगी द्या.")
         }
     }
 
