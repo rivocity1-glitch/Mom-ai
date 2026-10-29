@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Mom AI</string>
+    <string name="accessibility_service_description">Mom AI can find visible controls, go back, and enter text when you explicitly ask it to.</string>
+</resources>
