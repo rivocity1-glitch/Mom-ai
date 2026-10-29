@@ -3,6 +3,8 @@ name: Build Mom AI APK
 # Manual only for now. Saving code changes will NOT start an APK build.
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
