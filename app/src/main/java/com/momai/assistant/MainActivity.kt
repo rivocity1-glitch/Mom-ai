@@ -348,7 +348,24 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (lower.contains("उघड") || lower.contains("ओपन") || lower.contains("open")) {
             openAppFromCommand("WhatsApp उघड"); return
         }
-        respond("WhatsApp संदेश तयार करण्यासाठी सांगा: WhatsApp वर [फोन नंबर] ला [संदेश] पाठव. मी संदेश तयार करेन; पाठवण्यापूर्वी तपासा.")
+        val numberMatch = Regex("(?:\\+?91[ -]?)?[6-9][0-9]{9}").find(spoken)
+        val message = spoken.substringAfter("ला", "").substringBefore("पाठव").trim()
+        if (numberMatch == null || message.isBlank()) {
+            respond("संदेशासाठी सांगा: WhatsApp वर ९८१२३४५६७८ ला नमस्कार पाठव. मी संदेश तयार करेन; पाठवण्यापूर्वी WhatsApp मध्ये तपासा.")
+            return
+        }
+        var digits = numberMatch.value.filter { it.isDigit() }
+        if (digits.length == 10) digits = "91$digits"
+        val encoded = java.net.URLEncoder.encode(message, "UTF-8")
+        askConfirmation("या नंबरच्या WhatsApp चॅटमध्ये हा संदेश तयार करू का? $message") {
+            try {
+                val url = Uri.parse("https://wa.me/$digits?text=$encoded")
+                startActivity(Intent(Intent.ACTION_VIEW, url))
+                respond("WhatsApp उघडलं. संदेश तपासा आणि पाठवण्यासाठी WhatsApp मधील Send बटण दाबा.")
+            } catch (_: Exception) {
+                respond("WhatsApp चॅट उघडता आलं नाही. WhatsApp इन्स्टॉल आहे का तपासा.")
+            }
+        }
     }
 
     private fun askConfirmation(question: String, action: () -> Unit) {
