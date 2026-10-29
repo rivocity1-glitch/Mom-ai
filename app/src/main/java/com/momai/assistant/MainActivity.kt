@@ -145,19 +145,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             15f, muted
         ).apply { setPadding(dp(4), 0, 0, dp(10)) }, matchWrap())
 
-        val accessibilityButton = Button(this).apply {
-            text = "फोन कंट्रोल सुरू करा (Accessibility)"
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                status.text = "यादीत Mom AI निवडा आणि सेवा सुरू करा."
-            }
-        }
-        root.addView(accessibilityButton, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
         root.addView(label(
-            "फोनवर इतर अॅप्स नियंत्रित करण्यासाठी Accessibility परवानगी लागते. फोन कॉल करण्यापूर्वी पुष्टी विचारली जाईल; WhatsApp संदेश पाठवण्यापूर्वीही तुम्हाला तपासता येईल.",
+            "ही Lite आवृत्ती फक्त आवश्यक मायक्रोफोन परवानगी मागते. इतर अॅप्समधील बटणं आपोआप दाबणे उपलब्ध नाही.",
             13f, muted
-        ).apply { setPadding(dp(4), dp(8), dp(4), 0) }, matchWrap())
+        ).apply { setPadding(dp(4), dp(12), dp(4), 0) }, matchWrap())
 
         setContentView(ScrollView(this).apply {
             isFillViewport = true
@@ -228,27 +219,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 pendingAction = null; confirmPanel.visibility = View.GONE
                 status.text = "कृती रद्द केली."; speak("ठीक आहे. कृती रद्द केली.")
             }
-            command.contains("मागे जा") || command == "back" || command.contains("बॅक जा") -> {
-                val service = MomAccessibilityService.instance
-                if (service != null) {
-                    service.goBack(); respond("मागे जात आहे.")
-                } else accessibilityNeeded()
-            }
-            command.startsWith("टाइप ") || command.startsWith("type ") || command.startsWith("लिही ") -> {
-                val text = spoken.substringAfter(' ').trim()
-                val service = MomAccessibilityService.instance
-                if (service == null) accessibilityNeeded()
-                else if (text.isBlank()) respond("काय टाइप करायचं ते सांगा.")
-                else if (service.typeIntoFocusedField(text)) respond("टाइप केलं. पाठवण्यापूर्वी तपासा.")
-                else respond("टाइप करण्यासाठी आधी मजकूर लिहिण्याची जागा उघडा.")
-            }
-            command.startsWith("टॅप ") || command.startsWith("click ") || command.startsWith("क्लिक ") -> {
-                val target = spoken.substringAfter(' ').trim()
-                val service = MomAccessibilityService.instance
-                if (service == null) accessibilityNeeded()
-                else if (target.isNotBlank() && service.clickVisibleText(target)) respond("$target निवडलं.")
-                else respond("तो बटण/मजकूर सापडला नाही. स्क्रीनवर दिसणारे शब्द सांगा.")
-            }
+            command.contains("मागे जा") || command == "back" || command.contains("बॅक जा") ->
+                respond("या Lite आवृत्तीत इतर अॅप्समध्ये नेव्हिगेशन उपलब्ध नाही. फोनचा Back बटण वापरा.")
+            command.startsWith("टाइप ") || command.startsWith("type ") || command.startsWith("लिही ") ->
+                respond("या Lite आवृत्तीत इतर अॅपमध्ये आपोआप टाइप करता येत नाही.")
+            command.startsWith("टॅप ") || command.startsWith("click ") || command.startsWith("क्लिक ") ->
+                respond("या Lite आवृत्तीत इतर अॅपमधील बटणं आपोआप दाबता येत नाहीत.")
             command.contains("फोन कर") || command.contains("फोन लाव") || command.contains("कॉल कर") || command.contains("कॉल लाव") -> {
                 askConfirmation("फोन डायलर उघडू का? तिथे संपर्क निवडा आणि नंबर तपासा.") {
                     startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:")))
@@ -338,10 +314,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         (confirmPanel.getChildAt(0) as? TextView)?.text = question
         pendingAction = action
         speak(question + " हो किंवा नाही सांगा, किंवा खालील बटण दाबा.")
-    }
-
-    private fun accessibilityNeeded() {
-        respond("फोन कंट्रोल सुरू करण्यासाठी खालील Accessibility बटण दाबा. सेटिंग्जमध्ये Mom AI सेवा सुरू करा.")
     }
 
     private fun respond(message: String) {
